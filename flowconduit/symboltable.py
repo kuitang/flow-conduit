@@ -10,6 +10,7 @@ from itertools import chain, imap
 class SymbolTable(dict):
     def __init__(self, parents=None):
         'Create a new root context.'
+        #print "SymbolTable.__init__: parents = ", parents
         self.parents = parents
         self.map     = {}
         self.maps    = [ self.map ]
@@ -34,12 +35,20 @@ class SymbolTable(dict):
             if key in m: break
         return m[key]
     
-    def add_symbol(key, value):
+    def __setitem__(self, key, value):
         for m in self.maps:
             if key in m:
                 raise TypeError("Key %s already exists in dictionary %x"%
                                 key, id(m))
-        m[key] = value
+        self.map[key] = value
+
+    def add_symbols(self, mapping_or_iterable):
+        if isinstance(mapping_or_iterable, Mapping):
+            if hasattr(mapping_or_iterable, 'iteritems'):
+                iterable = mapping_or_iterable.iteritems()
+            else:
+                iterable = mapping_or_iterable.items()
+        for k,v in iterable: self[k] = v
 
     def __len__(self, len=len, sum=sum, imap=imap):
         return sum(imap(len, self.maps))
