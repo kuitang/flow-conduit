@@ -2,13 +2,14 @@
 from collections import Mapping, Iterable, deque
 from itertools import chain, imap, izip
 
-class SymbolTable(dict):
+class SymbolTable(Mapping):
     """
-    Nested write-once symbol tables.
+    Nested, "immutable" symbol tables.
 
     Based on http://code.activestate.com/recipes/577434-nested-contexts-a-chain-of-mapping-objects/
     """
-    def __init__(self, parents=(), map=None):
+
+    def __init__(self, parents=(), map={}):
         'Create a new root context.'
         #print "SymbolTable.__init__: parents = ", parents
         self.parents = parents
@@ -27,30 +28,16 @@ class SymbolTable(dict):
             q.extend(t.parents)
             yield t.map
         
-    def new_child(self):
+    def new_child(self, d=None):
         'Make a child context.'
-        return self.__class__(parents=(self,))
+        return self.__class__(parents=(self,), map=d)
 
+    # nah, can't really hash it because we don't know about the data!
     def __getitem__(self, key):
         for m in self.maps():
             if key in m: break
         return m[key]
     
-    def __setitem__(self, key, value):
-        for m in self.maps():
-            if key in m:
-                raise TypeError("Key %s already exists in dictionary %x"%
-                                key, id(m))
-        self.map[key] = value
-
-    def add_symbols(self, mapping_or_iterable):
-        if isinstance(mapping_or_iterable, Mapping):
-            if hasattr(mapping_or_iterable, 'iteritems'):
-                iterable = mapping_or_iterable.iteritems()
-            else:
-                iterable = mapping_or_iterable.items()
-        for k,v in iterable: self[k] = v
-
     def __len__(self, len=len, sum=sum, imap=imap):
         return sum(imap(len, self.maps()))
 
@@ -86,7 +73,6 @@ def wrap_input_for_symtable(f, inputs):
 def wrap_output_for_symtable(outputs):
     if isinstance(outputs, Mapping):
         def osym_mapping(symtable, retval):
-            newtable = symtable.new_child()
             if isinstance(retval, Mapping):
                 d = retval
             elif hasattr(retval, '__dict__'):
@@ -94,29 +80,26 @@ def wrap_output_for_symtable(outputs):
             else:
                 raise TypeError('SymbolTableFunc called with a Mapping outputs expects f to return a Mapping or object with __dict__ attribute')
 
-            for k,v in outputs.items(): newtable[v] = d[k]
-            return newtable
+            newtable_d = dict((v, d[k]) for k,v in outputs.items())
+            return symtable.new_child(newtable_d)
         output = osym_mapping 
         output_syms = outputs.values()
     elif isinstance(outputs, (str, unicode)):
         def osym_scalar(symtable, retval):
-            newsyms = symtable.new_child()
-            newsyms[outputs] = retval
-            return newsyms
+            return symtable.new_child({outputs: retval})
         output = osym_scalar
         output_syms = [ outputs ]
     elif isinstance(outputs, Iterable):
         def osym_iterable(symtable, retval):
-            newtable = symtable.new_child()
             if isinstance(retval, Mapping):
-                for k in outputs: newtable[k] = retval[k]
+                newtable_d = dict((k, retval[k]) for k in outputs)
             elif hasattr(retval, '__dict__'):
-                for k in outputs: newtable[k] = retval.__dict__[k]
+                newtable_d = dict((k, retval.__dict__[k]) for k in outputs)
             elif isinstance(retval, Iterable):
-                for k,v in izip(outputs, retval): newtable[k] = v
+                newtable_d = dict(izip(outputs, retval))
             else:
                 raise TypeError('SymbolTableFunc called with a Iterable output expects f to return a Mapping or object with __dict__ attribute or a Iterable')
-            return newtable
+            return symtable.new_child(newtable_d)
         output = osym_iterable
         output_syms = outputs
     elif outputs is None:
