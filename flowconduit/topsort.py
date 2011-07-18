@@ -37,9 +37,10 @@ def topsort(adj):
     del state.visited
     return state.result
 
-def topsort_from_src(adj, src):
+def topsort_from_srcs(adj, srcs):
     state = TopsortState()
-    dfs_visit(adj, src, state)
+    for s in srcs:
+        if s not in state.visited: dfs_visit(adj, s, state)
     del state.visited
     return state.result
 
