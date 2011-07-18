@@ -5,7 +5,7 @@ TODO: write.
 Flow-conduit _simulates global state_ through the `SymbolTable` class. 
 
 # Algorithms
-For each function, the user supplies a set of input and output _symbols_ (variable names). `ControlGraph` then constructs _data dependency_ and _data supplier_ maps. The data dependency map maps a function (_task_) to the set of names of variables (_symbols_) on which the task depends. The data supplier map maps each symbol to the function which returns that symbol. From these maps, `ControlGraph` assembles a `dependency graph` whose vertices are functions and whose edges (u,v) denote that function u directly depends on some symbol(s) provided by function v.
+For each function, the user supplies a set of input and output _symbols_ (variable names). `ControlGraph` then constructs _data dependency_ and _data supplier_ maps. The data dependency map maps a function (_task_) to the set of names of variables (_symbols_) on which the task depends. The data supplier map maps each symbol to the function which returns that symbol. From these maps, `ControlGraph` assembles a _dependency graph_ whose vertices are functions and whose edges (u,v) denote that function u directly depends on some symbol(s) provided by function v.
 
 All functions are modified to take and return `SymbolTable`s as explained above.
 
@@ -21,8 +21,8 @@ For parallelism, flow-conduit maintains a fixed number of threads in `ThreadPool
 6. For each `s` in `sources`, enqueue a work unit consisting of applying the function `s` to a new, empty `SymbolTable`, and decrement the unsubmitted task counter.
 7. _(Child Thread.)_ As each function `g` finishes,
     1. Synchronously record the result (a new `SymbolTable`) of this work unit.
-    2. For each function `f` which depends on the current function:
-        1. Synchronously check whether all of `f`'s dependencies are satisfied. If so, enqueue a work unit consisting of applying the function `f` to a `SymbolTable` whose parents are the results of all of the dependencies of `f`. _The parent relationship of the SymbolTable parallels the dependency relationship of ControlGraph. If `f` depends on `g` and `h`, then `f` will return a `SymbolTable` `t` which directly contains `f`'s output symbols, as well as parent pointers to the return values of `g` and `h`._
+    2. For each function `f` which depends on the current function, synchronously check whether all of `f`'s dependencies are now satisfied. If so,
+        1. Enqueue a work unit consisting of applying the function `f` to a `SymbolTable` whose parents are the results of all of the dependencies of `f`. _The parent relationship of the SymbolTable parallels the dependency relationship of ControlGraph. If `f` depends on `g` and `h`, then `f` will return a `SymbolTable` `t` which directly contains `f`'s output symbols, as well as parent pointers to the return values of `g` and `h`._
         2. Synchronously decrement the unsubmitted tasks counter.
         3. If there are zero unsubmitted tasks, notify the parent thread that all submissions are done.
 8. _(Parent Thread.)_ Wait for the notification that all tasks are submitted. Then wait for the worker pool to finish.
