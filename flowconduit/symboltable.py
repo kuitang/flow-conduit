@@ -4,22 +4,27 @@ Nested write-once symbol tables.
 Based on http://code.activestate.com/recipes/577434-nested-contexts-a-chain-of-mapping-objects/
 """
 
-from collections import Mapping
+from collections import Mapping, Iterable
 from itertools import chain, imap
 
 class SymbolTable(dict):
-    def __init__(self, parent=None):
+    def __init__(self, parents=None):
         'Create a new root context.'
-        self.parent = parent
-        self.map    = {}
-        self.maps   = [ self.map ]
-        if parent is not None:
+        self.parents = parents
+        self.map     = {}
+        self.maps    = [ self.map ]
+        if parents is not None:
             # Remember, it's a list of pointers.
-            self.maps += parent.maps
+            added = set()
+            for p in parents:
+                for m in p.maps:
+                    if id(m) not in added:
+                        added.add(id(m))
+                        self.maps.append(m)
 
     def new_child(self):
         'Make a child context.'
-        return self.__class__(parent=self)
+        return self.__class__(parents=[ self ])
 
     def root(self):
         return self if self.parent is None else self.parent.root
