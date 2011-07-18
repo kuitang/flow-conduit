@@ -60,9 +60,6 @@ class SymbolTable(dict):
     def __contains__(self, key, any=any):
         return any(key in m for m in self.maps())
     
-#    def __repr__(self):
-#        return '<symboltable.SymbolTable object at %x>'%id(self)
-#
     def __repr__(self, repr=repr):
         return 'SymbolTable(map=%s, parents=%s)'%(repr(self.map), repr(self.parents))
 
@@ -77,9 +74,7 @@ def wrap_input_for_symtable(f, inputs):
         prepared_f = lambda syms: f(syms[inputs])
         input_syms = [ inputs ]
     elif isinstance(inputs, Iterable):
-        #prepared_f = lambda syms: f(*[syms[k] for k in inputs])
-        def prepared_f(syms):
-            print "PREPARED_F: syms = ",  syms
+        prepared_f = lambda syms: f(*[syms[k] for k in inputs])
         input_syms = inputs
     elif inputs is None:
         prepared_f = lambda _: f()

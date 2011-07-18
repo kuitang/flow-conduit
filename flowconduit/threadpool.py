@@ -27,7 +27,7 @@ class ThreadPool(object):
         for _ in xrange(num_threads): Worker(self.tasks)
 
     def add_task(self, func, args, kwargs={}, callback=lambda x: x):
-        print "add_task: ", locals()
+#        print >> sys.stderr, "add_task: ", locals()
         self.tasks.put((func, args, kwargs, callback))
 
     def wait_completion(self):
