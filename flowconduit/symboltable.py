@@ -12,26 +12,36 @@ class SymbolTable(Mapping):
     def __init__(self, parents=(), map={}):
         'Create a new root context.'
         #print "SymbolTable.__init__: parents = ", parents
-        self.parents = parents
+        assert isinstance(parents, Iterable)
+        assert isinstance(map, Mapping)
+        self._parents = parents
+        
+        # Cycles are impossible because these things are immutable.
         if map is not None:
             self.map = map
         else:
             self.map = {}
 
     # 7/18: made truly structural/recursive. Should make memoization easier.
+    # It is inefficient to iterate every time, but this makes pickling
+    # easier.
+    # TODO: Figure out how to ignore pickling certain objects.
     def maps(self):
         # bfs the parents
         q = deque([self])
+        # add cycle detection
+        visited = set()
         while q:
             t = q.popleft()
-            assert isinstance(t, SymbolTable)
-            q.extend(t.parents)
-            yield t.map
+            if id(t) not in visited:
+                q.extend(t._parents)
+                visited.add(id(t))
+                yield t.map
         
-    def new_child(self, d=None):
+    def new_child(self, map=None):
         'Make a child context.'
-        return self.__class__(parents=(self,), map=d)
-
+        return self.__class__(parents=(self,), map=map)
+    
     # nah, can't really hash it because we don't know about the data!
     def __getitem__(self, key):
         for m in self.maps():
@@ -48,7 +58,7 @@ class SymbolTable(Mapping):
         return any(key in m for m in self.maps())
     
     def __repr__(self, repr=repr):
-        return 'SymbolTable(map=%s, parents=%s)'%(repr(self.map), repr(self.parents))
+        return 'SymbolTable(map=%s, parents=%s)'%(repr(self.map), repr(self._parents))
 
 def wrap_input_for_symtable(f, inputs):
     if isinstance(inputs, Mapping):
